@@ -1,8 +1,12 @@
 from urllib.request import urlopen
 import pandas as pd
-pd.set_option('display.max_rows',5000) #set pandas max rows
+pd.set_option('display.max_rows',5000) 
+
+#set pandas max rows
+#http://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.set_option.html
 
 pd.set_option('expand_frame_repr',False) # set 不换行显示
+
 stock_code_list=['sh600002','sh600276','sz300124']
 
 url="http://hq.sinajs.cn/list="+",".join(stock_code_list)
