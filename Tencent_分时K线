@@ -1,0 +1,39 @@
+from urllib.request import urlopen
+import json
+from random import randint
+import pandas as pd
+pd.set_option('display.max_rows',5000) #set pandas max rows
+
+pd.set_option('expand_frame_repr',False) # set 不换行显示
+
+def _random(n=16):
+    #创建随机数
+    start=10**(n-1)
+    end=(10**n)-1
+    return str(randint(start,end))
+
+#http://ifzq.gtimg.cn/appstock/app/kline/mkline?param=sh000300,m30,320&_var=m30_today&r=0.260880015116
+stock_code='sh600002' #sh600002,sz000001
+k_type=['m1','m5','m15','m30','m60']
+number=320 # max_limit=320
+url='http://ifzq.gtimg.cn/appstock/app/kline/mkline?param=%s,%s,,%s&_var=%s_today&r=0.%s'
+url=url %(stock_code,k_type[0],number,k_type[0],_random())
+print(url)
+content=urlopen(url=url,timeout=15).read().decode()
+content=content.split('=',maxsplit=1)[-1]
+content=json.loads(content)
+
+print(content)
+k_data=content['data'][stock_code][k_type[0]]
+
+df=pd.DataFrame(k_data)
+
+
+
+#对数据进行整理
+rename_dict={0:'candel_end_time',1:'open',2:'close',3:'high',4:'low',5:'amount',}
+df.rename(columns=rename_dict,inplace=True)
+# df['candel_end_time']=df['candel_end_time'].apply(lambda x:'%s-%s-%s %s:%s')
+df['candel_end_time']=pd.to_datetime(df['candel_end_time'])
+df=df[['candel_end_time','open','high','low','close','amount']]
+print(df)
