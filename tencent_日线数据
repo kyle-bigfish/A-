@@ -17,6 +17,23 @@ stock_code='sh600002' #sh600002,sh510500 退市，停牌，除权，新股
 k_type='day'
 num=30 # 股票最多640天的数据
 
+"""
+常用的链接示意
+hfq代表日K 后复权 
+
+http://web.ifzq.gtimg.cn/appstock/app/fqkline/get?_var=kline_dayhfq&param=sh600103,day,,,320,hfq&r=0.9860043111257255
+
+320代表查询几天的历史数据 初步推断 1年为320 两年为640
+
+http://web.ifzq.gtimg.cn/appstock/app/fqkline/get?_var=kline_dayhfq&param=sh600103,day,1998-01-01,1998-12-31,320,hfq&r=0.444157593883574
+
+http://web.ifzq.gtimg.cn/appstock/app/fqkline/get?_var=kline_dayhfq&param=sh600103,day,1999-01-01,1999-12-31,320,hfq&r=0.7529798413161188
+
+http://web.ifzq.gtimg.cn/appstock/app/fqkline/get?_var=kline_dayhfq2000&param=sh600103,day,2000-01-01,2001-12-31,640,hfq&r=0.7360555452760309
+"""
+
+
+
 url='http://web.ifzq.gtimg.cn/appstock/app/fqkline/get?_var=kline_dayqfq&param=%s,%s,,,%s,qfq&r=0.%s'
 # url='http://web.ifzq.gtimg.cn/appstock/app/fqkline/get?_var=kline_dayhfq&param=%s,%s,,,%s,hfq&r=0.%s'
 print(url)
