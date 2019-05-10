@@ -1,0 +1,299 @@
+#!/usr/bin/envpython
+#-*-coding:utf-8-*-
+"""
+__title__=''
+__author__='fsq'
+
+"""
+import requests
+import json
+import pandas as pd
+import urllib
+import re
+from stock import IP
+from bs4 import BeautifulSoup
+import random
+import datetime
+import os
+import math
+import time
+import threading
+session=requests.session()
+# headers = {
+#     'Cookie': '_ga=GA1.2.1937847076.1556156521; device_id=99171f94ce072e9d6ae33a4c83b449a9; s=du123nshng; _gid=GA1.2.1600657026.1557301041; Hm_lvt_1db88642e346389874251b5a1eded6e3=1556156522,1557299915,1557301041; xq_a_token=26974db68996055c0f93b475bbd16324850b08da; xqat=26974db68996055c0f93b475bbd16324850b08da; xq_r_token=0377adf30ac2f63d6a4c207f3896d1748f083498; xq_is_login=1; u=9513228980; Hm_lpvt_1db88642e346389874251b5a1eded6e3=1557301118',
+#     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36',
+#
+# }
+#
+# url1='https://xueqiu.com/cubes/nav_daily/all.json?cube_symbol=ZH1742997'
+# html=session.get(url=url1,headers=headers).text
+# html=json.loads(html)
+
+# print(html[0])
+# print(html[0]['symbol'])
+# print(html[0]['list'])
+# df=pd.DataFrame(html[0]['list'])
+# print(df)
+# data_0 = html("name")
+# data_1=html.split(":[")[1]
+# print(data_0)
+# print(data_1)
+# for i in data:
+#     print(i)
+
+firefoxHead = {"User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:61.0) Gecko/20100101 Firefox/61.0"}
+IPRegular = r"(([1-9]?\d|1\d{2}|2[0-4]\d|25[0-5]).){3}([1-9]?\d|1\d{2}|2[0-4]\d|25[0-5])"
+def parseIPList(url="http://www.xicidaili.com/"):						 # 获取西刺免费代理IP首页的所有IP（这个用单纯的request请求是无法获取页面信息的）
+	IPs = []
+	request = urllib.request.Request(url,headers=firefoxHead)
+	response = urllib.request.urlopen(request)
+	soup = BeautifulSoup(response,"lxml")								 # 这里必须使用lxml来解析HTML
+	tds = soup.find_all("td")
+	for td in tds:
+		string = str(td.string)
+		if re.search(IPRegular,string):
+			IPs.append(string)
+	return IPs
+
+
+IPs=parseIPList()
+proxies= {"http":"{}:8080".format(IPs[random.randint(0,80)])}
+
+
+
+html={}
+def parsePortfolioNet(symbol):# 获取指定编号的组合净值情况
+    netURL = "https://xueqiu.com/cubes/nav_daily/all.json?cube_symbol={}".format(symbol)
+    headers = {
+        'Cookie': '_ga=GA1.2.1937847076.1556156521; device_id=99171f94ce072e9d6ae33a4c83b449a9; s=du123nshng; _gid=GA1.2.1600657026.1557301041; Hm_lvt_1db88642e346389874251b5a1eded6e3=1556156522,1557299915,1557301041; xq_a_token=26974db68996055c0f93b475bbd16324850b08da; xqat=26974db68996055c0f93b475bbd16324850b08da; xq_r_token=0377adf30ac2f63d6a4c207f3896d1748f083498; xq_is_login=1; u=9513228980; Hm_lpvt_1db88642e346389874251b5a1eded6e3=1557301118',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36',}
+    print(netURL)
+
+    html=session.get(url=netURL,headers=headers,proxies=proxies).text
+
+    print(len(html))
+    if len(html)>100:
+        html = json.loads(html)
+        df=pd.DataFrame(html[0]['list'])
+        df['stock_name']=html[0]['symbol']
+        time.sleep(6.5)
+        if df.empty:
+            print("no data")
+        else:
+            return df
+    else:
+        print("代码错误")
+# 组合编码    创建日期
+# ZH100000    2015.01.03
+# ZH200000    2015.02.16
+# ZH300000    2015.04.04
+# ZH400000    2015.05.08
+# ZH500000    2015.06.06
+# ZH600000    2015.07.19
+# ZH700000    2015.10.10
+# ZH800000    2016.01.25
+# ZH900000    2016.06.30
+# ZH1000000    2016.12.24
+# ZH1100000    2017.06.23
+# ZH1200000    2017.11.17
+# ZH1300000    2018.03.22
+# ZH1350000    2018.06.12
+# ZH1580000    2018.08.04
+def portfio_name(start=20,start_code=200000):
+    portfio_namepool = []
+
+    for i in range(start):
+        portfio = 'ZH' + str(start_code + i)
+        portfio_namepool.append(portfio)
+    return portfio_namepool
+
+
+def parsePortfolioHistory(session,symbol,fileRoute,interval,maxCount=50):# 获取指定编号的组合调仓历史
+	histroyURL = "https://xueqiu.com/cubes/rebalancing/history.json?cube_symbol={}&count={}&page={}"
+	html = session.get(histroyURL.format(symbol,1,1)).text
+	print(html)
+	if html[2]=="e":													 # 第二个字符是e表示出现了error（直接返回）
+		return False
+	else:
+		tempIndex = html.find("\"totalCount\":")						 # totalCount表示调仓总次数
+		dotIndex = html.find(",",tempIndex)
+		total = int(html[tempIndex+13:dotIndex])						 # 获取调仓总次数
+		log = open("Histroy\\{}".format(fileRoute),"a")
+		page = math.ceil(total/maxCount)
+		print("一共有{}页".format(page))
+		page = min(page,50)												 # 说实话这个50页上限是个坑（无论一页放多少条调仓记录，最终只能最多50页，一页上限是50条）
+		for i in range(page):
+			html = session.get(histroyURL.format(symbol,maxCount,i+1)).text
+			if html[2]=="e":											 # 表明爬取一只组合的中途出错了
+				log.close()
+				os.remove("Histroy\\{}".format(fileRoute))				 # 删除文件
+				return False
+			time.sleep(random.uniform(0,interval))
+			try:
+				log.write("{}\n".format(html))
+			except:
+				f = open("Error.txt","a")
+				f.write("{}\t{}\n".format(symbol,datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+				f.close()
+				return True
+		log.close()
+	return True
+
+
+
+
+# symbols=portfio_name()
+# index = 0
+# requestInterval = 6.5
+# resetInterval = 600
+# flag1 = False
+#
+# flag = parsePortfolioHistory(session,"{}".format(symbols[index]),"{}.txt".format(symbols[index]),requestInterval)
+
+
+# for d in symbols:
+#     dd1=parsePortfolioNet(d)
+#     print(dd1.tail(1))
+    # dd1 = dd1[['name','date', 'percent', 'value']]
+    # print(dd1.tail(5))
+
+# print(IP)
+
+def main_process():  # 主函数
+    print('-----------------------------------------------------process 1 start-----------------------------------------------------')
+    IPs = parseIPList()
+    # f = open("P.txt", "r")  # 这个文件包含了所有需要爬取的组合编码（需要你自己获取）
+    # symbols = f.read().split("\n")[:-1]  # 获取组合列表
+    symbols=portfio_name(100,200000)
+    print(symbols)
+    mainURL = "https://xueqiu.com"
+    session = requests.Session()
+    session.headers = firefoxHead.copy()
+    session.get(mainURL)  # 定位雪球网主页
+
+    index = 0
+    requestInterval = 6.5
+    resetInterval = 600
+
+    flag1 = False
+    time.sleep(1)
+    print("fuck")
+    # for index in  range(len(symbols)):
+    while index < len(symbols):
+        time.sleep(1.5)
+        print("正在获取{}的调仓记录".format(symbols[index]))
+        proxy = {"http": "{}:8080".format(IPs[random.randint(0, 40)])}  # 设置代理IP
+        print(proxy)
+        session.proxies = proxy
+        # flag = parsePortfolioHistory(session, "{}".format(symbols[index]), "{}.txt".format(symbols[index]),
+        #                              requestInterval)
+        flag=parsePortfolioNet(symbols[index])
+
+        # flag = parsePortfolioNet(symbols[index])
+
+
+        print(flag.tail(5))
+
+        if flag.empty==False:
+            index += 1
+            if flag1:
+                flag1 = False
+        else:  # 表明访问过于频繁
+            print("-------------访问过于频繁，爬虫中止！-------------")
+            f1 = open("Error.txt", "a")
+            f1.write("{}中止\t{}\n".format(symbols[index], datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+            f1.close()
+            if flag1:
+                resetInterval += 50
+            else:
+                flag1 = True
+                requestInterval += 0.5
+                f2 = open("requestInterval.txt", "a")
+                f2.write("当前requestInterval为{}\t{}\n".format(requestInterval,
+                                                                 datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+                f2.close()
+            time.sleep(resetInterval)
+            f3 = open("resetInterval.txt", "a")
+            f3.write(
+                    "当前resetInterval为{}\t{}\n".format(resetInterval, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+            f3.close()
+
+
+def main_process_2():  # 主函数
+    print('process 2 start-----------------------------------------------------')
+    IPs = parseIPList()
+    # f = open("P.txt", "r")  # 这个文件包含了所有需要爬取的组合编码（需要你自己获取）
+    # symbols = f.read().split("\n")[:-1]  # 获取组合列表
+    symbols=portfio_name(100,200001)
+    print(symbols)
+    mainURL = "https://xueqiu.com"
+    session = requests.Session()
+    session.headers = firefoxHead.copy()
+    session.get(mainURL)  # 定位雪球网主页
+
+    index = 0
+    requestInterval = 6.5
+    resetInterval = 600
+
+    flag1 = False
+
+    while index < len(symbols):
+        time.sleep(1.5)
+        print("正在获取{}的调仓记录".format(symbols[index]))
+        proxy = {"http": "{}:8080".format(IPs[random.randint(0, 40)])}  # 设置代理IP
+        print(proxy)
+        session.proxies = proxy
+        # flag = parsePortfolioHistory(session, "{}".format(symbols[index]), "{}.txt".format(symbols[index]),
+        #                              requestInterval)
+        # flag=parsePortfolioNet(symbols[index])
+
+
+
+        # t2 = threading.Thread(target=parsePortfolioNet(symbols[index])
+        # t2.start()
+
+        try:
+            flag = parsePortfolioNet(symbols[index])
+        except:
+            print("error")
+        else:
+            print("yes~~~")
+        # print(t2.tail(5))
+
+        if flag.empty==False:
+            print(flag.tail(5))
+            index += 1
+            if flag1:
+                flag1 = False
+        else:  # 表明访问过于频繁
+            print("-------------访问过于频繁，爬虫中止！-------------")
+            f1 = open("Error.txt", "a")
+            f1.write("{}中止\t{}\n".format(symbols[index], datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+            f1.close()
+            if flag1:
+                resetInterval += 50
+            else:
+                flag1 = True
+                requestInterval += 0.5
+                f2 = open("requestInterval.txt", "a")
+                f2.write("当前requestInterval为{}\t{}\n".format(requestInterval,
+                                                             datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+                f2.close()
+            time.sleep(resetInterval)
+            f3 = open("resetInterval.txt", "a")
+            f3.write(
+                "当前resetInterval为{}\t{}\n".format(resetInterval, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+            f3.close()
+
+if __name__ == "__main__":
+
+    # t1 = threading.Thread(target=main_process)
+    #tt1=threading.Thread()
+    # t1.setDaemon(True)  # 设置为后台线程，这里默认是False，设置为True之后则主线程不用等待子线程
+    # t1.start()
+
+    # print("---"*50)
+    # time.sleep(3)
+    t2 = threading.Thread(target=main_process_2)
+    # # t2.setDaemon(True)  # 设置为后台线程，这里默认是False，设置为True之后则主线程不用等待子线程
+    t2.start()
