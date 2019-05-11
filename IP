@@ -1,0 +1,85 @@
+import re
+import random
+import requests
+from bs4 import BeautifulSoup
+
+
+class IP():
+    def __init__(self, headers="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:61.0) Gecko/20100101 Firefox/61.0"):
+        self.mainURL = "http://www.xicidaili.com/"  # 西刺代理首页
+        self.nnURL = self.mainURL + "nn/"  # 国内高匿代理
+        self.ntURL = self.mainURL + "nt/"  # 国内普通代理
+        self.wnURL = self.mainURL + "wn/"  # 国内HTTPS代理
+        self.wtURL = self.mainURL + "wt/"  # 国内HTTP代理
+        self.ipRegulation = r"(([1-9]?\d|1\d{2}|2[0-4]\d|25[0-5]).){3}([1-9]?\d|1\d{2}|2[0-4]\d|25[0-5])"
+        self.headers = {"User-Agent": headers}
+        self.session = requests.Session()
+        self.session.headers = headers
+        while True:
+            try:
+                self.session.get(self.mainURL)
+                break
+            except:
+                print("访问西刺代理失败！")
+                time.sleep(300)
+
+    def get_nn_IP(self):  # 获取国内高匿代理
+        address = []
+        interface = []
+        html = self.session.get(self.nnURL).text
+        soup = BeautifulSoup(html, "lxml")
+        tds = soup.find_all("td")
+        count = 0
+        for td in tds:
+            count += 1
+            if count % 10 == 2:
+                address.append(str(td.string))
+            elif count % 10 == 3:
+                interface.append(str(td.string))
+        return ["{}:{}".format(address[i], interface[i]) for i in range(min(len(address), len(interface)))]
+
+    def get_nt_IP(self):  # 获取国内普通代理
+        address = []
+        interface = []
+        html = self.session.get(self.ntURL).text
+        soup = BeautifulSoup(html, "lxml")
+        tds = soup.find_all("td")
+        count = 0
+        for td in tds:
+            count += 1
+            if count % 10 == 2:
+                address.append(str(td.string))
+            elif count % 10 == 3:
+                interface.append(str(td.string))
+        return ["{}:{}".format(address[i], interface[i]) for i in range(min(len(address), len(interface)))]
+
+    def get_wn_IP(self):  # 获取国内HTTPS代理
+        address = []
+        interface = []
+        html = self.session.get(self.wnURL).text
+        soup = BeautifulSoup(html, "lxml")
+        tds = soup.find_all("td")
+        count = 0
+        for td in tds:
+            count += 1
+            if count % 10 == 2:
+                address.append(str(td.string))
+            elif count % 10 == 3:
+                interface.append(str(td.string))
+        return ["{}:{}".format(address[i], interface[i]) for i in range(min(len(address), len(interface)))]
+
+    def get_wt_IP(self):  # 获取国内HTTP代理
+        address = []
+        interface = []
+        html = self.session.get(self.wtURL).text
+        print(html)
+        soup = BeautifulSoup(html, "lxml")
+        tds = soup.find_all("td")
+        count = 0
+        for td in tds:
+            count += 1
+            if count % 10 == 2:
+                address.append(str(td.string))
+            elif count % 10 == 3:
+                interface.append(str(td.string))
+        return ["{}:{}".format(address[i], interface[i]) for i in range(min(len(address), len(interface)))]
