@@ -1,0 +1,77 @@
+#!/usr/bin/envpython
+#-*-coding:utf-8-*-
+"""
+__title__=''
+__author__='fsq'
+如何结合yuzhece网的历史数据，每天获取股票的数据
+"""
+from urllib.request import urlopen
+import pandas as pd
+from datetime import datetime
+import time
+import re
+import os
+
+pd.set_option('display.max_rows',5000) #set pandas max rows
+
+pd.set_option('expand_frame_repr',False) # set 不换行显示
+
+def get_content_internet(url,max_try_num=10,sleep_time=5):
+    get_success=False
+    for i in range(max_try_num):
+        try:
+            content=urlopen(url=url,timeout=10).read()
+            get_success=True
+            break
+        except Exception as  e:
+            print("抓取数据错误，次数:",i+1,"报错内容",e)
+            time.sleep(sleep_time)
+        if get_success:
+            return content
+        else:
+            raise ValueError("数据错误")
+
+def get_today_data_from_sinajs(code_list):
+    url = "http://hq.sinajs.cn/list=" + ",".join(code_list)
+    print(url)
+    content = get_content_internet(url)
+    content = content.strip()  # 去除爬取数据的空格
+    data_line = content.split('\n')
+    data_line = [i.replace('var hq_str_', '').split(',') for i in data_line]
+    # 批量处理字符串
+    df = pd.DataFrame(data_line, dtype='float')
+    # 结构化爬取的数据
+    df[0] = df[0].str.split('="')
+    df['stock_code'] = df[0].str[0].str.strip()
+    df['stock_name'] = df[0].str[-1].str.strip()
+    df['candel_end_time'] = df[30] + ' ' + df[31]
+    df['candel_end_time'] = pd.to_datetime(df['candel_end_time'])
+    # 时间转化成datetime格式
+    rename_dict = {1: 'open', 2: 'pre_close', 3: 'close', 4: 'high', 5: 'low', 6: 'buy1', 7: 'sell1', 8: 'amount',
+                   9: 'volume', 32: 'status'}
+    df.rename(columns=rename_dict, inplace=True)
+    df['status'] = df['status'].str.strip()
+    df = df[
+        ['stock_code', 'stock_name', 'candel_end_time', 'open', 'high', 'low', 'close', 'pre_close', 'amount', 'volume',
+         'buy1', 'sell1']]
+    # 显示需要的数据列
+
+    df = df[df['open'] - 0 > 0.0001]
+    # 判断是否是停牌/退市
+    return df
+
+def is_today_trading_day():
+    df=get_today_data_from_sinajs(code_list=['sh000001'])
+    sh_date=df.iloc[0]['candle_end_time']
+    return datetime.now().date()==sh_date.date()
+code_list=['sh600003']
+
+df=get_today_data_from_sinajs(code_list)
+print(df)
+if is_today_trading_day() is False:
+    print('今天不是交易日')
+if datetime.now().hour<15:
+    print('还在交易时间')
+
+
+def get_all_today_data_from_sina_marketcontend():
