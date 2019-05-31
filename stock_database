@@ -26,15 +26,15 @@ def get_content_internet(url,max_try_num=10,sleep_time=5):
         except Exception as  e:
             print("抓取数据错误，次数:",i+1,"报错内容",e)
             time.sleep(sleep_time)
-        if get_success:
-            return content
-        else:
-            raise ValueError("数据错误")
+    if get_success:
+        return content
+    else:
+        raise ValueError("数据错误")
 
-def get_today_data_from_sinajs(code_list):
-    url = "http://hq.sinajs.cn/list=" + ",".join(code_list)
+def get_today_data_from_sinajs(stock_code_list):
+    url = "http://hq.sinajs.cn/list=" + ",".join(stock_code_list)
     print(url)
-    content = get_content_internet(url)
+    content = urlopen(url).read().decode('gbk')
     content = content.strip()  # 去除爬取数据的空格
     data_line = content.split('\n')
     data_line = [i.replace('var hq_str_', '').split(',') for i in data_line]
@@ -57,21 +57,37 @@ def get_today_data_from_sinajs(code_list):
     # 显示需要的数据列
 
     df = df[df['open'] - 0 > 0.0001]
-    # 判断是否是停牌/退市
     return df
+# code_list=['sh600000']
+#
+# df=get_today_data_from_sinajs(code_list)
+# print(df)
+
 
 def is_today_trading_day():
-    df=get_today_data_from_sinajs(code_list=['sh000001'])
+    df = get_today_data_from_sinajs(stock_code_list=['sh000001'])
+    print(df)
     sh_date=df.iloc[0]['candle_end_time']
+    print(sh_date)
     return datetime.now().date()==sh_date.date()
-code_list=['sh600003']
+# is_today_trading_day()
 
-df=get_today_data_from_sinajs(code_list)
-print(df)
 if is_today_trading_day() is False:
     print('今天不是交易日')
-if datetime.now().hour<15:
-    print('还在交易时间')
+# if datetime.now().hour<15:
+#     print('还在交易时间')
 
 
 def get_all_today_data_from_sina_marketcontend():
+    url='http://vip.stock.finance.sina.com.cn/quotes_service/api/json_v2.php/Market_Center.getHQNodeData?page=%s&num=80&sort=symbol&asc=1&node=sh_a&symbol=&_s_r_a=sort'
+    pagenum=1
+    all_df=pd.DataFrame()
+    while True:
+        url=url%(pagenum)
+        print('开始抓取',pagenum)
+        #抓取数据
+        content=get_content_internet(url)
+        content=content.decode('gbk')
+        print(content)
+
+# aa=get_all_today_data_from_sina_marketcontend()
