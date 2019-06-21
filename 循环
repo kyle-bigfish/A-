@@ -1,0 +1,170 @@
+# -*- coding:utf-8 -*-
+
+"""
+@author:April Chen
+@file:20CIRCLEs.py
+@time:2018/8/4 10:43
+"""
+
+#关注monitoring_time（如半年）,在此期间确认中间的最高点位，做为评估的最高点起点highest_price，
+# 向后不断的循环阴阳线的周期，
+# 若一直保持低于最高点，整体下跌态势，（判断该周期内最高点占整体的比例HIGH_LIMIT）则继续循环阴阳线的周期；
+#若后面出现新的最高点，重启循环周期以及最高点，
+# 若一直到第X个周期则停止，判断该日收盘价点占最高点的比例buy_limit，满足，在判断是否大于monitoring_time的结束时间，大于，作为潜在的买入点buy_point；不满足，提示:此时点位较高，不适宜买入
+#若一没有到第X个周期就停止，则提示：在该段时间内没有出现可买入点
+# 在买入点buy_point，持有holding_time段时间，卖出，计算收益
+#买入日期，在end_monitor之后进行买入
+
+import tushare as ts
+import datetime as dt
+import pandas as pd
+
+# df=ts.get_stock_basics()
+df=ts.get_hs300s()
+print(df)
+stock_info=df
+# print(df)
+# stock_list=df.index.tolist()
+# stock_list=df.index.tolist()
+stock_list=ts.get_hs300s()['code'].tolist()
+print(stock_list)
+start='2018-07-01'
+end ='2019-06-18'
+CIRCLE=25
+HIGH_LIMIT=0.9
+START_MONITOR=start
+END_MONITOR='2019-05-01'
+HOLDING_TIME=30
+HOLDING_NUM=1000
+FEE=0.0015
+
+#得到K线数据
+def load_total_data(stock,start,end):
+    df= ts.get_k_data(stock,ktype='D',start=start,end=end,autype='qfq')
+    #print(df)
+    return df
+
+# 统计数据是否阴线，阳线
+def line_type_mark(df):
+    df = df.reset_index()
+    if len(df):
+        df['type'] = df['close'] - df['open']
+        df.ix[df['type'] >= 0, 'line_type'] = 1 #提取符合条件的行=1
+        df.ix[df['type'] < 0, 'line_type'] = -1 #提取符合条件的行=-1
+        df['line_type'].fillna(method='bfill', inplace=True)  #如果为空值，则补全
+        return df
+    else:
+        return None
+
+#连续阴阳线标注
+def mark_success_gain(df):
+    # df = df.reset_index()
+    win_list = list(df['line_type'])
+    successive_list = []
+    num = 1
+    for i in range(len(win_list)):
+        if i == 0:
+            successive_list.append(num)
+        else:
+            if (win_list[i] != win_list[i - 1]  ):
+                num += 1
+            successive_list.append(num)
+    df['count'] = successive_list
+    return df
+
+def loop_df(stock,last_high,last_open,start,end):
+    df = load_total_data(stock,start, end)
+    if len(df):
+        df = line_type_mark(df)
+        df = mark_success_gain(df)
+        df = df[df['count'] <= CIRCLE]
+        if len(df):
+            highest_price = df['high'].max()
+            #
+            if ((highest_price - last_open) <= (last_high - last_open) * HIGH_LIMIT) and (
+                df.tail(1).date.values[0] > END_MONITOR) and df.tail(1).close.values[0]<last_high*0.618:
+                print(df.tail(1).date.values[0])
+                print("Got It!")
+                #print(df)
+                return df
+            else:
+                print("Still looping~~")
+                high_df = df[df['high'] == highest_price]
+                highest_date = dt.datetime.strptime(high_df.head(1).date.values[0], '%Y-%m-%d')
+                loop_start_date = highest_date + dt.timedelta(days=1)
+                #print(loop_start_date)
+                loop_start_date = loop_start_date.strftime('%Y-%m-%d')
+                return loop_df(stock,highest_price, last_open, loop_start_date, end)
+        else:
+            print("没有满足条件的数据！")
+            return None
+    else:
+        print("没有满足条件的数据！")
+        return None
+
+def get_profit(stock,buy_point,start_date):
+    # name=stock_info.loc[stock,'name']
+
+    end_date = start_date + dt.timedelta(days=HOLDING_TIME)
+    start_date = start_date.strftime('%Y-%m-%d')
+    end_date = end_date.strftime('%Y-%m-%d')
+    df = load_total_data(stock,start_date, end_date)
+    end_price=df.tail(1).close.values[0]
+    #print(end_price)
+    profit=(end_price-buy_point-2*FEE)*HOLDING_NUM
+    print("卖出价格:" + str(end_price) + ",盈利：" + str(profit))
+    # return [stock,name,start_date,end_date,buy_point,end_price,profit]
+    return [stock, start_date, end_date, buy_point, end_price, profit]
+
+def check_high_point(sotck,start,end):
+
+    df=load_total_data(sotck,START_MONITOR, END_MONITOR)
+    if len(df):
+        #temp_df=df[(df['date']>=START_MONITOR)&(df['date']<=END_MONITOR)]
+        highest_price=df['high'].max()
+        start_price = df.head(1).open.values[0]
+        high_df=df[df['high']==highest_price]
+        highest_date =dt.datetime.strptime(high_df.head(1).date.values[0], '%Y-%m-%d')
+        loop_start_date=highest_date+dt.timedelta(days=1)
+        loop_start_date =loop_start_date.strftime('%Y-%m-%d')
+        result=loop_df(stock,highest_price, start_price,loop_start_date,end)
+        # print(result)
+        if result is not None and len(result):
+        #print(type(result))
+            buy_point=result.tail(1).close.values[0]
+            buy_time=result.tail(1).date.values[0]
+            buy_time = dt.datetime.strptime(buy_time, '%Y-%m-%d')
+            buy_time = buy_time + dt.timedelta(days=1)
+            #buy_time = buy_time.strftime('%Y-%m-%d')
+            print("买入价格:"+str(buy_point)+",买入时间："+str(buy_time))
+            out=get_profit(stock,buy_point,buy_time)
+
+            return out
+
+    else:
+        print("没有数据！")
+        return None
+
+
+
+#check_high_point(start,end)
+
+# result=pd.DataFrame(columns=('stock','name','start_date','end_date','buy_point','end_price','profit'))
+result=pd.DataFrame(columns=('stock','start_date','end_date','buy_point','end_price','profit'))
+j=0
+i=0
+for stock in stock_list:
+    if i<1000:
+        print("当前股票"+str(stock))
+        out=check_high_point(stock,start,end)
+
+        print(out)
+        if out:
+            result.loc[j]=out
+            j+=1
+            #result = result.append(pd.DataFrame({"stock":out[0],"start_date":out[1],"end_date":out[2],"buy_point":out[3],"end_price":out[4],"profit":out[5]}),ignore_index=True)
+        print(result)
+        i+=1
+    else:
+        break
+result.to_csv('stock_300.csv')
