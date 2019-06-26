@@ -1,0 +1,136 @@
+#!/usr/bin/envpython
+#-*-coding:utf-8-*-
+"""
+__title__=''
+__author__='fsq'
+
+"""
+import pandas as pd
+import os
+import time
+current_date=time.strftime("%Y_%m_%d ")
+
+pd.set_option('expand_frame_repr', False)  # 当列太多时显示完整
+
+def convert_from_day_to_month(df,year=2019,month=6,rule_type='1M'):
+    df['交易日期'] = pd.to_datetime(df['交易日期'])
+
+    df = df[df['成交量'] > 0]
+    df['交易日期1']=df['交易日期']
+    df['交易日期2'] = df['交易日期']
+    df.set_index('交易日期', inplace=True)
+
+
+
+    # df['交易天数']=(len(df[df['交易日期'] > pd.to_datetime('2019-05-31')]))
+    # df['month']=df['交易日期'].dt.month
+    # print(df[(df['交易日期'].dt.year==year)])
+    # df=df[(df['交易日期'].dt.year==year)]
+
+
+    # print(df[(df['交易日期'].dt.month == month)])
+    # df = df[(df['交易日期'].dt.month == month)]
+
+    # print('a,',len(df['交易日期']))
+    # df['交易天数']=len(df['交易日期'])
+    # print(df.groupby(['股票代码', 'month']).size())
+    df = df[(df['交易日期1'].dt.year == year)]
+    df = df[(df['交易日期1'].dt.month == month)]
+    df['交易天数']=len(df['交易日期1'])
+    df['当月开盘天数'] = len(df['交易日期1'])
+
+
+
+    rule_type = '1M'  # rule='1W'：意思是一周，意味着转变为周线数据
+
+    period_df = df[['收盘价']].resample(rule=rule_type).last()
+
+
+
+
+
+    #
+    # # 开、高、低的价格，成交量
+
+
+    period_df['开盘价'] = df['开盘价'].resample(rule=rule_type).first()
+    period_df['股票代码'] = df['股票代码'].resample(rule=rule_type).first()
+    period_df['股票名称'] = df['股票名称'].resample(rule=rule_type).first()
+    period_df['开盘价'] = df['开盘价'].resample(rule=rule_type).first()
+    period_df['最高价'] = df['最高价'].resample(rule=rule_type).max()
+    period_df['收盘价'] = df['收盘价'].resample(rule=rule_type).last()  # last：取这一周的最后一行数据
+    period_df['最低价'] = df['最低价'].resample(rule=rule_type).min()
+    period_df['成交量'] = df['成交量'].resample(rule=rule_type).sum()
+    period_df['交易日期2']=df['交易日期2'].resample(rule=rule_type).last()
+    period_df['当月开盘天数'] = df['当月开盘天数'].resample(rule=rule_type).max()
+
+
+
+
+    period_df['交易天数'] = df['交易天数'].resample(rule=rule_type).max()
+    #
+
+
+
+
+
+
+#     period_df = df.resample(rule=rule_type, on='交易日期', base=0, label='right', closed='left').agg(
+#         {
+#             '股票代码':'first',
+#         '股票名称':'first',
+#             '开盘价': 'first',
+#             '最高价': 'max',
+#             '最低价': 'min',
+#             '收盘价': 'last',
+#             '成交量': 'sum',
+#             '交易天数':'max'
+#
+#     }
+# ) #agg 是字典操作，on的属性是index，而不是datetime
+    period_df = period_df[['交易日期2','股票代码','股票名称','开盘价', '最高价', '最低价', '收盘价', '成交量','交易天数','当月开盘天数']]
+
+    period_df['月涨跌幅']=period_df['收盘价']-period_df['开盘价']
+
+    period_df = period_df[['交易日期2','股票代码','股票名称','开盘价', '最高价', '最低价', '收盘价', '成交量','月涨跌幅','交易天数','当月开盘天数']]
+
+    print(period_df)
+
+
+
+
+
+    return period_df
+
+def get_month_data():
+    path='D:\workspace\homework\data\\basic_trading_data\stock_data'
+    file_location = r'D:\workspace\homework\data\\basic_trading_data\stock_data'
+    file_list = []
+    for root, dirs, files in os.walk(file_location):
+        for filename in files:
+            if filename.endswith('.csv'):
+                file_path = os.path.join(root, filename)
+                file_path = os.path.abspath(file_path)
+                file_list.append(file_path)
+
+    all_data = pd.DataFrame()
+    for fp in sorted(file_list)[:-1]:
+
+    # 导入数据
+        df = pd.read_csv(fp, skiprows=1, encoding='gbk')
+        df_month = convert_from_day_to_month(df, rule_type='1M')
+
+        #  合并数据
+        all_data = all_data.append(df_month, ignore_index=True)  # 注意此时若一下子导入很多文件，可能会内存溢出
+
+
+    return all_data
+df_all_data=get_month_data()
+df_all_data['当月开盘天数'] = df_all_data['当月开盘天数'].max()
+df_all_data['是否有过停牌'] = None
+df_all_data.ix[df_all_data['交易天数'] == df_all_data['当月开盘天数'], '是否有过停牌'] = '否'
+df_all_data.ix[df_all_data['交易天数'] != df_all_data['当月开盘天数'], '是否有过停牌'] = '是'
+print(df_all_data)
+
+sh_name='2019年6月交易数据_task4_'+current_date+'.csv'
+df_all_data.to_csv(sh_name)
