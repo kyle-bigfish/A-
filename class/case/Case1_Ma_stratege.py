@@ -63,6 +63,7 @@ df.loc[condition1 & condition2, 'signal'] = 0  # 将产生平仓信号当天的s
 df.drop(['ma_short', 'ma_long'], axis=1, inplace=True)
 
 #===查询有效的信号，结合K线实盘验证
+print(df.loc[df['signal']==1])
 print(df.query('signal<1'))
 print(df.loc[df['signal']<1])
 
