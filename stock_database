@@ -2,7 +2,7 @@
 #-*-coding:utf-8-*-
 """
 __title__=''
-__author__='fsq'
+
 如何结合yuzhece网的历史数据，每天获取股票的数据
 """
 from urllib.request import urlopen
