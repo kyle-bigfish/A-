@@ -2,7 +2,7 @@
 #-*-coding:utf-8-*-
 """
 __title__=''
-__author__='fsq'
+
 jpg 转化成PDF 
 """
 from reportlab.pdfgen import canvas
