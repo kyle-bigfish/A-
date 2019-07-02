@@ -41,3 +41,92 @@ iloc 同样可以进行和列的混合选择，例如：
 
 实际工作中，其实很少用到 iloc ，除非你想选择第一行( data.iloc[0] ) 或者 最后一行( data.iloc[-1] )
 
+使用 loc 从DataFrame中筛选数据
+可以在以下2中情况下使用 ioc：
+
+使用 基于标签(列头)的下标的 查找
+使用 boolean / 有条件的 查找
+
+使用 loc 的语法和 iloc 一样：data.loc[<row selection>, <column selection>]
+使用基于标签(列头)的下标数据选择
+使用 loc 进行数据选择是基于下标的（如果有的话），可以使用 df.set_index() 来设置下标, loc 方法直接通过下标来选择行。
+例如将"last_name"这一列设置为下标：
+    data.set_index("last_name", inplace=True)
+
+现在我们已经将下标设置为"last_name"，这样我们就可以根据"last_name"选择不同的数据了，使用 data.loc[<label>]
+
+同样的可以查找单个值或者多个值，例子如图：
+
+
+注意，第一个样例代码返回的是 Series 类型，而第二个样例代码返回的是 DataFrame 类型，同样你也可以通过传递一个单值list来返回一个 DataFrame 类型的数据
+
+当然也可以使用 loc 对列进行选择，同时可以选择对列使用 " : "进行切片选择，效果如图：
+
+同时，你还可以使用 " : " 对下标进行切片选择，例如 data.loc['Bruch':'Julio'] 会选择从下标为'Bruch'到下标为'Julio' 的所有行，例如：
+
+# 选择下标值为'Andrade' 和 'Veness',并且从'city'到'email'的所有列
+    data.loc[['Andrade', 'Veness'], ['city':'email']]
+    # 选择和之前相同的行，但只选择'first_name', 'address' 和 'city'这3列
+    data.loc['Andrade':'Veness', ['first_name', 'address', 'city']]
+
+    # 将下标切换为'id'
+    data.set_index('id', inplace=True) # 在原有数据源上修改
+    # 选择下标（'id'）= 487 的行
+    data.loc[487]
+    
+   注意：最后一行代码：data.loc[487] 不等价于 data.iloc[487], 前者是选择 'id' = 487 的行，
+   而后者是选择第488行，DataFrame的索引可以是数字顺序的，也可以是字符串或多值的。
+   
+   使用Boolean / 逻辑判断选择数据
+   
+使用 boolean 数组进行条件选择是较为常用的手段，使用boolean下标或者逻辑表达式，你可以传递给 loc 一个值为 True/False 的Series或者数组来选择那些 Series或者数组中值为 True 的行。
+较多情况下，语句 data["first_name" == 'Antonio'] 会返回一个值为 True/False 的 Series 类型数据，其中 "True" 代表这一行中的 "first_name" 值为 "Antonio"，这些 boolean数组可以直接如图所示传递给 loc 方法：
+
+和之前一样，可以传递给 loc 第2个"参数"用来选择某些列，可以是列举的列名，也可以是用 " : " 切片的连续列，如图：
+
+同样要注意：如果只选择了单独的一列，返回的是 Series 类型，同样传递一个单值list可以返回 DataFrame 类型，如图：
+
+通过以下代码可以很好的理解 loc 的使用：
+
+# 选择 first_name 为Antonio,并且从 'city' 到 'email'的所有列
+    data.loc[data['first_name'] == 'Antonio', 'city':'email']
+ 
+    # 选择那些 email的值中是以 "hotmail.com" 结尾的行，同时选择所有列
+    data.loc[data['email'].str.endswith("hotmail.com")]   
+ 
+    # 选择那些 "last_name" 等于某些值的行
+    data.loc[data['first_name'].isin(['France', 'Tyisha', 'Eric'])]   
+       
+    # 选择 first_name = 'Antonio' 并且 email 是以 "gmail.com"结尾的行
+    data.loc[data['email'].str.endswith("gmail.com") & (data['first_name'] == 'Antonio')] 
+ 
+    # select rows with id column between 100 and 200, and just return 'postal' and 'web' columns
+    # 选择那些 id 从100到200的行，并且只返回 'postal' 和 'web' 这两列
+    data.loc[(data['id'] > 100) & (data['id'] <= 200), ['postal', 'web']] 
+ 
+    # lambda函数产生的 True/False 同样可以使用到 loc 中
+    # 选择那些公司名为4个单词的行
+    data.loc[data['company_name'].apply(lambda x: len(x.split(' ')) == 4)] 
+ 
+    # 为了代码更加清晰， 选择也可以在 .loc 之外进行
+    # 在 .loc 之外单独生成一个变量
+    idx = data['company_name'].apply(lambda x: len(x.split(' ')) == 4)
+    # 只选择 idx 值为True的那些行，并且只选择'email', 'first_name', 'company'这3列
+    data.loc[idx, ['email', 'first_name', 'company']]
+    
+    
+    顺便说一下Pandas中 map(), apply() 和 applymap()的区别
+
+map() 是 Series 中的函数，DataFrame 中是没有 map() 的，map() 将函数应用于Series中的每一个元素
+apply() 和 applymap() 是 DataFrame 中的函数，而在Series中是没有的。他们的区别在于： apply() 将函数作用于DataFrame中的 每一个行或者列，而 applymap() 会将函数作用于DataFrame中的 每一个元素。
+
+使用 loc 修改 DataFrame 中的数据
+你可以像使用 loc 查询数据那样对数据进行修改，这个操作不会返回新的数据对象而是直接在原数据上进行修改。通过这个操作，你可以根据不同的情况对数据进行修改：
+    # 修改 'id' > 2000 的数据中的 'first_name' 为 "John"
+    data.loc[data['id'] > 2000, "first_name"] = "John"
+
+使用 ix 进行选择
+
+现在pandas官方已经不推荐使用 ix 进行选择了，并且将会在 0.20.1版本从Pandas中丢弃
+
+https://www.jianshu.com/p/d6a9845a0a34
