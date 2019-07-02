@@ -92,7 +92,7 @@ df['equity_change'] = df['net_value'].pct_change(fill_method=None)
 df.loc[open_pos_condition, 'equity_change'] = df.loc[open_pos_condition, 'net_value'] / initial_cash - 1  # 开仓日的收益率
 df['equity_change'].fillna(value=0, inplace=True)
 df['equity_curve'] = (1 + df['equity_change']).cumprod()
-
+df['equity_curve_base'] = (df['收盘价']/df['前收盘价']).cumprod() #比较这只股票上市以来涨了多少
 # ===删除无关数据
 df.drop(['start_time', 'stock_num', 'cash', 'stock_value', 'net_value'], axis=1, inplace=True)
 
